@@ -22,24 +22,28 @@ class Windowing:
         self.hop_length = hop_length if hop_length else self.window_size // 2
     
     def __call__(self, waveform):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
-
+        wav_length = len(waveform)
+        left_padding = np.zeros(self.window_size // 2)
+        right_padding = np.zeros(self.window_size // 2)
+        waveform = np.concatenate([left_padding, waveform, right_padding])
+        windows = []
+        for idx in range((wav_length - self.window_size % 2) // self.hop_length + 1):
+            left_idx = idx * self.hop_length
+            right_idx = left_idx + self.window_size
+            window = waveform[left_idx:right_idx]
+            windows.append(window)
+        windows = np.stack(windows)
         return windows
     
 
 class Hann:
     def __init__(self, window_size=1024):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
-
+        self.hahn_weights = scipy.signal.windows.hann(window_size, sym=False)
     
     def __call__(self, windows):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        for window in windows:
+            window *= self.hahn_weights
+        return windows
 
 
 
@@ -48,11 +52,11 @@ class DFT:
         self.n_freqs = n_freqs
 
     def __call__(self, windows):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
-
-        return spec
+        freqs = np.fft.rfft(windows, axis=1)
+        freqs = np.absolute(freqs)
+        if self.n_freqs:
+            freqs = freqs[:, :self.n_freqs]
+        return freqs
 
 
 class Square:
@@ -62,25 +66,20 @@ class Square:
 
 class Mel:
     def __init__(self, n_fft, n_mels=80, sample_rate=22050):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        self.mel_basis = librosa.filters.mel(
+            sr=sample_rate, htk=False,
+            n_fft=n_fft, n_mels=n_mels,
+            fmin=1, fmax=8192,
+            )
+        self.inv_mel_basis = np.linalg.pinv(self.mel_basis)
 
 
     def __call__(self, spec):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
-
+        mel = spec @ self.mel_basis.T
         return mel
 
     def restore(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
-
-        return spec
-
+        return mel @ self.inv_mel_basis.T
 
 class GriffinLim:
     def __init__(self, window_size=1024, hop_length=None, n_freqs=None):
@@ -132,88 +131,72 @@ class Wav2Mel:
 
 class TimeReverse:
     def __call__(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        return mel[::-1, :]
 
 
 
 class Loudness:
     def __init__(self, loudness_factor):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        self.loudness_factor = loudness_factor
 
 
     def __call__(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        return mel * self.loudness_factor
 
 
 
 
 class PitchUp:
     def __init__(self, num_mels_up):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
-
+        self.num_mels_up = num_mels_up
 
     def __call__(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        transformerd_mel = np.zeros_like(mel)
+        mel_shape = mel.shape[1]
+        transformerd_mel[:, self.num_mels_up:] = mel[:, :mel_shape - self.num_mels_up]
+        return transformerd_mel
 
 
 
 class PitchDown:
     def __init__(self, num_mels_down):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        self.num_mels_up = num_mels_down
 
 
     def __call__(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        transformerd_mel = np.zeros_like(mel)
+        mel_shape = mel.shape[1]
+        transformerd_mel[:, :mel_shape - self.num_mels_up] = mel[:, self.num_mels_up:]
+        return transformerd_mel
 
 
 
 class SpeedUpDown:
     def __init__(self, speed_up_factor=1.0):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
-
+        self.speed_up_factor = speed_up_factor
 
     def __call__(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        indices = np.linspace(0, mel.shape[0] - 1, int(self.speed_up_factor * mel.shape[0]))
+        indices = np.round(indices).astype("int")
+        return mel[indices, :]
 
 
 
 class FrequenciesSwap:
     def __call__(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        return mel[:, ::-1]
 
 
 
 class WeakFrequenciesRemoval:
     def __init__(self, quantile=0.05):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        self.quantile = quantile
 
 
     def __call__(self, mel):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
-        # ^^^^^^^^^^^^^^
+        cutoff = np.quantile(mel, self.quantile)
+        mel[mel < cutoff] = 0
+        return mel
 
 
 
